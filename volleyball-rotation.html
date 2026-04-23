@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Volleyball Rotation Locator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --card: #0f3460;
+    --accent: #e94560;
+    --gold: #f5a623;
+    --text: #eaeaea;
+    --muted: #8a9bb0;
+    --disk-outer: #d4a843;
+    --disk-inner: #e8c97a;
+    --disk-bg: #fdf3d7;
+    --disk-edge: #b8860b;
+    --court-green: #2d6a4f;
+    --court-line: #52b788;
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    padding: 1rem 1.5rem 0.75rem;
+    text-align: center;
+    background: linear-gradient(180deg, #0f3460 0%, transparent 100%);
+  }
+
+  header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--gold);
+  }
+
+  header p {
+    font-size: .82rem;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: .02em;
+  }
+
+  main {
+    width: 100%;
+    max-width: 480px;
+    padding: 1rem 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  /* === SETUP PANEL === */
+  .setup-panel {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid rgba(245,166,35,0.25);
+    padding: 1.1rem 1.25rem;
+  }
+
+  .setup-panel h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--gold);
+    margin-bottom: .9rem;
+  }
+
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-bottom: .9rem;
+  }
+
+  .player-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .player-cell label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+
+  .player-cell input {
+    width: 100%;
+    text-align: center;
+    background: #0a1628;
+    border: 1px solid rgba(245,166,35,0.3);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    padding: 7px 2px;
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  .player-cell input:focus {
+    border-color: var(--gold);
+  }
+
+  .pos-hint {
+    font-size: 8px;
+    color: var(--muted);
+    text-align: center;
+    opacity: .7;
+  }
+
+  .setup-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: .95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .btn:hover { background: rgba(255,255,255,0.07); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--gold);
+    color: #1a1000;
+    border-color: var(--gold);
+  }
+  .btn-primary:hover { background: #f0b830; }
+
+  .btn-danger {
+    border-color: rgba(233,69,96,0.4);
+    color: var(--accent);
+  }
+  .btn-danger:hover { background: rgba(233,69,96,0.1); }
+
+  /* === DISK AREA === */
+  .disk-area {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  .disk-area.active { display: flex; }
+
+  .disk-container {
+    position: relative;
+    width: min(340px, 90vw);
+    height: min(340px, 90vw);
+    user-select: none;
+  }
+
+  #diskSvg {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.5));
+  }
+  #diskSvg:active { cursor: grabbing; }
+
+  /* === CONTROLS === */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .rot-display {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    min-width: 100px;
+    text-align: center;
+  }
+
+  .rot-display span {
+    color: var(--gold);
+    font-size: 1.2rem;
+  }
+
+  .btn-rotate {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    padding: 0;
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    background: rgba(245,166,35,0.1);
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-rotate:hover { background: rgba(245,166,35,0.25); }
+  .btn-rotate:active { transform: scale(0.95); }
+
+  /* === ROSTER TABLE === */
+  .roster-card {
+    display: none;
+    width: 100%;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  .roster-card.active { display: block; }
+
+  .roster-header {
+    padding: .6rem 1rem;
+    background: rgba(245,166,35,0.1);
+    border-bottom: 1px solid rgba(245,166,35,0.2);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--gold);
+  }
+
+  .roster-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .roster-table th {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    padding: 6px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .roster-table td {
+    padding: 8px 12px;
+    font-size: .88rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .roster-table tr:last-child td { border-bottom: none; }
+
+  .roster-table tr.is-server td { background: rgba(245,166,35,0.07); }
+
+  .player-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text);
+  }
+
+  .serving-pill {
+    display: inline-block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--gold);
+    color: #1a1000;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  footer {
+    padding: 1rem;
+    text-align: center;
+    font-size: .72rem;
+    color: var(--muted);
+    opacity: .5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Volleyball Rotation</h1>
+  <p>Rotation locator — enter player numbers, then rotate</p>
+</header>
+
+<main>
+
+  <!-- SETUP -->
+  <div class="setup-panel" id="setupPanel">
+    <h2>Enter starting lineup (position order 1–6)</h2>
+    <div class="player-grid" id="playerGrid"></div>
+    <p class="pos-hint" style="margin-bottom:.8rem;">1=Right Back (server) · 2=Center Back · 3=Left Back · 4=Left Front · 5=Center Front · 6=Right Front</p>
+    <div class="setup-actions">
+      <button class="btn btn-primary" onclick="startTracker()">Start →</button>
+      <button class="btn btn-danger" onclick="resetAll()">Reset</button>
+    </div>
+  </div>
+
+  <!-- DISK -->
+  <div class="disk-area" id="diskArea">
+    <div class="disk-container" id="diskContainer">
+      <svg id="diskSvg" viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="controls">
+      <button class="btn-rotate" onclick="rotateBack()" title="Rotate back">↺</button>
+      <div class="rot-display">Rotation <span id="rotNum">1</span>/6</div>
+      <button class="btn-rotate" onclick="rotateForward()" title="Rotate forward">↻</button>
+    </div>
+
+    <button class="btn btn-danger" onclick="resetAll()" style="font-size:.8rem;padding:6px 14px;">← Edit lineup</button>
+  </div>
+
+  <!-- ROSTER -->
+  <div class="roster-card" id="rosterCard">
+    <div class="roster-header">Current positions</div>
+    <table class="roster-table">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Position</th>
+          <th>Zone</th>
+        </tr>
+      </thead>
+      <tbody id="rosterBody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer>Drag the disk or use the buttons to rotate · Made for volleyball families</footer>
+
+<script>
+// === DATA ===
+// Positions in rotation order (1=right back/server, going clockwise back then front)
+const POSITIONS = [
+  { slot: 1, name: 'Right Back',   zone: 'Back Right',   angleDeg: 0   }, // server
+  { slot: 2, name: 'Center Back',  zone: 'Back Center',  angleDeg: 60  },
+  { slot: 3, name: 'Left Back',    zone: 'Back Left',    angleDeg: 120 },
+  { slot: 4, name: 'Left Front',   zone: 'Front Left',   angleDeg: 180 },
+  { slot: 5, name: 'Center Front', zone: 'Front Center', angleDeg: 240 },
+  { slot: 6, name: 'Right Front',  zone: 'Front Right',  angleDeg: 300 },
+];
+
+// Court zones shown on outer ring (fixed)
+const COURT_ZONES = [
+  { label: 'RIGHT\nBACK',   sub: 'Server',  angle: 0   },
+  { label: 'CENTER\nBACK',  sub: '',        angle: 60  },
+  { label: 'LEFT\nBACK',    sub: '',        angle: 120 },
+  { label: 'LEFT\nFRONT',   sub: '',        angle: 180 },
+  { label: 'CENTER\nFRONT', sub: '',        angle: 240 },
+  { label: 'RIGHT\nFRONT',  sub: '',        angle: 300 },
+];
+
+let players = ['', '', '', '', '', ''];
+let rotation = 0; // number of clockwise rotations applied
+let animAngle = 0; // current visual angle of inner disk (degrees)
+let targetAngle = 0;
+let animId = null;
+
+// === INIT ===
+function init() {
+  const grid = document.getElementById('playerGrid');
+  grid.innerHTML = '';
+  POSITIONS.forEach((p, i) => {
+    grid.innerHTML += `
+      <div class="player-cell">
+        <label>Pos ${p.slot}</label>
+        <input type="text" maxlength="3" placeholder="#" id="pin${i}" value="${players[i]}"
+               oninput="players[${i}]=this.value.trim()" inputmode="numeric">
+        <div class="pos-hint">${p.name.split(' ')[0]}<br>${p.name.split(' ')[1]||''}</div>
+      </div>`;
+  });
+}
+
+// === DRAWING ===
+const CX = 170, CY = 170, R_OUTER = 165, R_RING = 130, R_INNER = 118, R_HUB = 28;
+const TAU = Math.PI * 2;
+
+function polarToXY(cx, cy, r, angleDeg) {
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function wedgePath(cx, cy, r1, r2, startDeg, endDeg) {
+  const s1 = polarToXY(cx, cy, r1, startDeg);
+  const e1 = polarToXY(cx, cy, r1, endDeg);
+  const s2 = polarToXY(cx, cy, r2, endDeg);
+  const e2 = polarToXY(cx, cy, r2, startDeg);
+  const large = (endDeg - startDeg) > 180 ? 1 : 0;
+  return [
+    `M ${s1.x} ${s1.y}`,
+    `A ${r1} ${r1} 0 ${large} 1 ${e1.x} ${e1.y}`,
+    `L ${s2.x} ${s2.y}`,
+    `A ${r2} ${r2} 0 ${large} 0 ${e2.x} ${e2.y}`,
+    'Z'
+  ].join(' ');
+}
+
+function drawDisk(innerAngle) {
+  const svg = document.getElementById('diskSvg');
+
+  // Colors
+  const outerColors = ['#c8a84b','#d4b84e','#c8a84b','#d4b84e','#c8a84b','#d4b84e'];
+  const innerColors = ['#e8c97a','#f0d88a','#e8c97a','#f0d88a','#e8c97a','#f0d88a'];
+  const serverColor = '#e94560';
+
+  let html = `
+    <defs>
+      <filter id="diskShadow" x="-5%" y="-5%" width="110%" height="110%">
+        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.4)"/>
+      </filter>
+      <radialGradient id="hubGrad" cx="50%" cy="35%" r="60%">
+        <stop offset="0%" stop-color="#f5e0a0"/>
+        <stop offset="100%" stop-color="#b8860b"/>
+      </radialGradient>
+    </defs>
+  `;
+
+  // === OUTER RING (fixed court zones) ===
+  html += `<g id="outerRing">`;
+
+  COURT_ZONES.forEach((zone, i) => {
+    const startDeg = zone.angle - 30;
+    const endDeg = zone.angle + 30;
+    const isServer = i === 0;
+    const fill = isServer ? '#c0392b' : outerColors[i];
+    html += `<path d="${wedgePath(CX, CY, R_OUTER, R_RING, startDeg, endDeg)}" fill="${fill}" stroke="#8B6914" stroke-width="1.5"/>`;
+
+    // dividers
+    const dpt = polarToXY(CX, CY, R_OUTER, startDeg);
+    const dpb = polarToXY(CX, CY, R_RING, startDeg);
+    html += `<line x1="${dpt.x}" y1="${dpt.y}" x2="${dpb.x}" y2="${dpb.y}" stroke="#8B6914" stroke-width="1.5"/>`;
+
+    // text
+    const mid = polarToXY(CX, CY, (R_OUTER + R_RING) / 2 - 4, zone.angle);
+    const lines = zone.label.split('\n');
+    html += `<text text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="700" fill="${isServer ? '#ffd9dd' : '#3d2800'}" font-size="10"
+      transform="translate(${mid.x},${mid.y}) rotate(${zone.angle})">`;
+    lines.forEach((l, li) => {
+      html += `<tspan x="0" dy="${li === 0 ? -6 : 13}">${l}</tspan>`;
+    });
+    if (isServer) {
+      html += `<tspan x="0" dy="13" font-size="8" fill="#ffaaaa">SERVER</tspan>`;
+    }
+    html += `</text>`;
+  });
+
+  // outer edge circle
+  html += `<circle cx="${CX}" cy="${CY}" r="${R_OUTER}" fill="none" stroke="#8B6914" stroke-width="2.5"/>`;
+  html += `<circle cx="${CX}" cy="${CY}" r="${R_RING}" fill="none" stroke="#8B6914" stroke-width="1"/>`;
+  html += `</g>`;
+
+  // === INNER DISK (rotates) ===
+  html += `<g id="innerDisk" transform="rotate(${innerAngle}, ${CX}, ${CY})">`;
+
+  // base fill
+  html += `<circle cx="${CX}" cy="${CY}" r="${R_INNER}" fill="#fdf3d7" stroke="#b8860b" stroke-width="1.5"/>`;
+
+  // court diagram background
+  html += `<circle cx="${CX}" cy="${CY}" r="${R_INNER - 2}" fill="#2d6a4f" opacity="0.12"/>`;
+
+  // court lines (inner disk) — simplified court layout
+  // net line (horizontal through center)
+  html += `<line x1="${CX - R_INNER + 8}" y1="${CY}" x2="${CX + R_INNER - 8}" y2="${CY}" stroke="#8B6914" stroke-width="0.8" opacity="0.5"/>`;
+  // attack lines
+  html += `<line x1="${CX - R_INNER + 14}" y1="${CY - 36}" x2="${CX + R_INNER - 14}" y2="${CY - 36}" stroke="#8B6914" stroke-width="0.5" opacity="0.35" stroke-dasharray="3,3"/>`;
+  html += `<line x1="${CX - R_INNER + 14}" y1="${CY + 36}" x2="${CX + R_INNER - 14}" y2="${CY + 36}" stroke="#8B6914" stroke-width="0.5" opacity="0.35" stroke-dasharray="3,3"/>`;
+
+  // Player wedges + numbers
+  const rotatedPlayers = getRotatedPlayers();
+  POSITIONS.forEach((pos, i) => {
+    const startDeg = pos.angleDeg - 30;
+    const endDeg = pos.angleDeg + 30;
+    const isServer = i === 0;
+    const fill = isServer ? 'rgba(233,69,96,0.18)' : (i % 2 === 0 ? 'rgba(245,166,35,0.08)' : 'rgba(245,166,35,0.04)');
+
+    html += `<path d="${wedgePath(CX, CY, R_INNER - 3, R_HUB + 6, startDeg, endDeg)}" fill="${fill}" stroke="#b8860b" stroke-width="0.8"/>`;
+
+    const pt = polarToXY(CX, CY, (R_INNER + R_HUB) / 2 + 8, pos.angleDeg);
+    const playerNum = rotatedPlayers[i] || '?';
+    const textColor = isServer ? '#e94560' : '#3d2800';
+    const fontSize = playerNum.length > 2 ? 16 : 20;
+
+    // counter-rotate text so it always reads upright
+    html += `<text text-anchor="middle" dominant-baseline="central"
+      font-family="'Barlow Condensed',sans-serif" font-weight="900"
+      font-size="${fontSize}" fill="${textColor}"
+      transform="translate(${pt.x},${pt.y}) rotate(${-innerAngle})">${playerNum}</text>`;
+
+    // small position label
+    const ptLabel = polarToXY(CX, CY, (R_INNER + R_HUB) / 2 - 10, pos.angleDeg);
+    html += `<text text-anchor="middle" dominant-baseline="central"
+      font-family="'Barlow Condensed',sans-serif" font-weight="600"
+      font-size="7" fill="${isServer ? '#e94560' : '#8B6914'}" opacity="${isServer ? 0.9 : 0.6}"
+      transform="translate(${ptLabel.x},${ptLabel.y}) rotate(${-innerAngle})">P${pos.slot}</text>`;
+  });
+
+  // Hub
+  html += `<circle cx="${CX}" cy="${CY}" r="${R_HUB}" fill="url(#hubGrad)" stroke="#8B6914" stroke-width="2" filter="url(#diskShadow)"/>`;
+  html += `<circle cx="${CX}" cy="${CY}" r="${R_HUB - 6}" fill="none" stroke="#8B6914" stroke-width="0.8" opacity="0.5"/>`;
+  html += `<text text-anchor="middle" dominant-baseline="central" x="${CX}" y="${CY}"
+    font-family="'Barlow Condensed',sans-serif" font-weight="900" font-size="9" fill="#5a3a00"
+    transform="rotate(${-innerAngle}, ${CX}, ${CY})">VB</text>`;
+
+  html += `</g>`;
+
+  // Pointer arrow at top (points to server position)
+  html += `<polygon points="${CX},${CY - R_OUTER - 4} ${CX - 8},${CY - R_OUTER + 10} ${CX + 8},${CY - R_OUTER + 10}"
+    fill="#e94560" stroke="#fff" stroke-width="1"/>`;
+
+  svg.innerHTML = html;
+  addDragListeners();
+}
+
+// === PLAYER CALCULATION ===
+function getRotatedPlayers() {
+  const result = [];
+  for (let i = 0; i < 6; i++) {
+    result[i] = players[(i - rotation + 6) % 6] || '?';
+  }
+  return result;
+}
+
+// === ROTATION ===
+function rotateForward() {
+  rotation = (rotation + 1) % 6;
+  targetAngle += 60;
+  animateDisk();
+  updateRoster();
+  updateRotNum();
+}
+
+function rotateBack() {
+  rotation = (rotation - 1 + 6) % 6;
+  targetAngle -= 60;
+  animateDisk();
+  updateRoster();
+  updateRotNum();
+}
+
+function animateDisk() {
+  if (animId) cancelAnimationFrame(animId);
+  const start = animAngle;
+  const end = targetAngle;
+  const duration = 280;
+  const startTime = performance.now();
+
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    animAngle = start + (end - start) * ease;
+    drawDisk(animAngle);
+    if (t < 1) animId = requestAnimationFrame(step);
+  }
+  animId = requestAnimationFrame(step);
+}
+
+function updateRotNum() {
+  const n = ((rotation % 6) + 6) % 6;
+  document.getElementById('rotNum').textContent = n + 1;
+}
+
+function updateRoster() {
+  const rotated = getRotatedPlayers();
+  const tbody = document.getElementById('rosterBody');
+  tbody.innerHTML = '';
+  POSITIONS.forEach((pos, i) => {
+    const isServer = i === 0;
+    tbody.innerHTML += `<tr class="${isServer ? 'is-server' : ''}">
+      <td><span class="player-num">${rotated[i]}</span>${isServer ? '<span class="serving-pill">Serving</span>' : ''}</td>
+      <td style="color:var(--muted)">${pos.name}</td>
+      <td style="color:var(--muted);font-size:.8rem">${pos.zone}</td>
+    </tr>`;
+  });
+}
+
+// === DRAG TO ROTATE ===
+let dragStart = null;
+let dragStartAngle = 0;
+
+function addDragListeners() {
+  const svg = document.getElementById('diskSvg');
+  svg.addEventListener('mousedown', onDragStart);
+  svg.addEventListener('touchstart', onDragStart, { passive: false });
+}
+
+function getAngleFromEvent(e, rect) {
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI;
+}
+
+function onDragStart(e) {
+  e.preventDefault();
+  const rect = document.getElementById('diskSvg').getBoundingClientRect();
+  dragStart = getAngleFromEvent(e, rect);
+  dragStartAngle = animAngle;
+
+  const onMove = (ev) => {
+    ev.preventDefault();
+    const current = getAngleFromEvent(ev, rect);
+    let delta = current - dragStart;
+    animAngle = dragStartAngle + delta;
+    targetAngle = animAngle;
+    drawDisk(animAngle);
+  };
+
+  const onEnd = () => {
+    // Snap to nearest 60deg
+    const snapped = Math.round(animAngle / 60) * 60;
+    const steps = Math.round((snapped - (dragStartAngle)) / 60);
+    rotation = ((rotation - steps) % 6 + 6) % 6;
+    targetAngle = snapped;
+    animAngle = snapped;
+    updateRoster();
+    updateRotNum();
+    drawDisk(animAngle);
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('touchend', onEnd);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
+}
+
+// === FLOW ===
+function startTracker() {
+  const filled = players.filter(p => p.trim() !== '');
+  if (filled.length < 6) {
+    alert('Please enter all 6 player numbers before starting.');
+    return;
+  }
+  rotation = 0;
+  animAngle = 0;
+  targetAngle = 0;
+  document.getElementById('setupPanel').style.display = 'none';
+  document.getElementById('diskArea').classList.add('active');
+  document.getElementById('rosterCard').classList.add('active');
+  drawDisk(0);
+  updateRoster();
+  updateRotNum();
+}
+
+function resetAll() {
+  players = ['', '', '', '', '', ''];
+  rotation = 0;
+  animAngle = 0;
+  targetAngle = 0;
+  document.getElementById('setupPanel').style.display = '';
+  document.getElementById('diskArea').classList.remove('active');
+  document.getElementById('rosterCard').classList.remove('active');
+  init();
+}
+
+// === START ===
+init();
+</script>
+</body>
+</html>
